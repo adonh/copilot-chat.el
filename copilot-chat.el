@@ -306,7 +306,7 @@ This function can be overriden by frontend."
                 (line-beginning-position)
                 (line-end-position)))
          (lang (replace-regexp-in-string
-                "-mode$" ""
+                "\\(?:-ts\\)?-mode$" ""
                 (symbol-name major-mode)))
          (prompt (format "In %s programming language, please explain what '%s' means in the context of this code line:\n%s" 
                         lang symbol line)))
