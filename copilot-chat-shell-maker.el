@@ -33,6 +33,13 @@
 
 (declare-function copilot-chat-reset "copilot-chat")
 
+;; Customs
+(defcustom copilot-chat-shell-maker-follow t
+  "If t, point follows answer in buffer."
+  :type 'boolean :group 'copilot-chat)
+
+
+;; Variables
 (defvar copilot-chat--shell-cb-fn nil)
 (defvar copilot-chat--shell-config
   (make-shell-maker-config
@@ -41,8 +48,13 @@
 (defvar copilot-chat--shell-maker-answer-point 0
   "Start of the current answer.")
 
+
+;; Constants
 (defconst copilot-chat--shell-maker-temp-buffer "*copilot-chat-shell-maker-temp*")
 
+
+
+;; Functions
 (defun copilot-chat--shell-maker-custom-prompt-selection()
   "Send to Copilot a custom prompt followed by the current selected code."
   (unless (copilot-chat--ready-p)
@@ -91,6 +103,8 @@
 (defun copilot-chat--shell-maker-copy-faces()
   "Apply faces to the copilot chat buffer."
   (with-current-buffer copilot-chat--shell-maker-temp-buffer
+    (unless copilot-chat-shell-maker-follow
+      (goto-char (1+ copilot-chat--shell-maker-answer-point)))
     (save-restriction
       (widen)
       (font-lock-ensure)
@@ -99,8 +113,7 @@
         (with-current-buffer copilot-chat--buffer
           (goto-char (1+ copilot-chat--shell-maker-answer-point))
           (insert content)
-          (delete-region (point) (+ (point) (length content)))
-          (goto-char (point-max)))))))
+          (delete-region (point) (+ (point) (length content))))))))
 
 (defun copilot-chat--shell-cb-prompt (shell content)
   "Callback for Copilot Chat shell-maker.
