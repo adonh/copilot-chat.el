@@ -172,21 +172,31 @@ Argument SHELL is the `shell-maker' instance."
    command
    (copilot-chat-shell-maker-cb-fn (copilot-chat--frontend instance))))
 
+(defvar-keymap copilot-chat-shell-mode-map
+  :parent shell-maker-mode-map
+  :doc "Keymap for `copilot-chat-shell-mode'."
+  "<return>" #'copilot-chat-prompt-send
+  "C-c C-c" #'copilot-chat-prompt-send
+  "C-c C-t" #'copilot-chat-transient
+  "M-p" #'copilot-chat-prompt-history-previous
+  "M-n" #'copilot-chat-prompt-history-next)
+
 (defun copilot-chat--shell (instance)
   "Start a Copilot Chat shell for INSTANCE."
-  (let ((buf
-         (shell-maker-start
-          (make-shell-maker-config
-           :name (format "Copilot-Chat%s" (copilot-chat-directory instance))
+  (let* ((cfg (make-shell-maker-config
+           :name (format "🧑‍✈️%s" (abbreviate-file-name (copilot-chat-directory instance)))
            :execute-command
            (lambda (command shell)
-             (copilot-chat--shell-cb instance command shell)))
+             (copilot-chat--shell-cb instance command shell))))
+          (mode (shell-maker-define-major-mode cfg copilot-chat-shell-mode-map))
+          (buf (shell-maker-start cfg
           t nil t
           (copilot-chat--get-buffer-name (copilot-chat-directory instance)))))
     (with-current-buffer buf
       (setq-local default-directory (copilot-chat-directory instance))
       (local-set-key [remap comint-send-input] #'copilot-chat-prompt-send)
-      (local-set-key [remap shell-maker-submit] #'copilot-chat-prompt-send))
+      (local-set-key [remap shell-maker-submit] #'copilot-chat-prompt-send)
+      (use-local-map copilot-chat-shell-mode-map))
     buf))
 
 (defun copilot-chat--shell-maker-insert-prompt (instance prompt)
