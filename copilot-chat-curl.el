@@ -35,6 +35,7 @@
 (require 'copilot-chat-mcp)
 (require 'copilot-chat-responses)
 (require 'copilot-chat-completions)
+;; adon: 2026-01-05: ??? (require 'seq)
 
 ;; customs
 (defcustom copilot-chat-curl-program "curl"
@@ -87,6 +88,20 @@ authentication."
   :type 'boolean
   :group 'copilot-chat)
 
+(defun ash-debug-payload (filename)
+  "Read FILENAME after stripping a leading \"@\" (if present) and log actions to *Messages*.
+If called interactively, prompt for a file (it accepts names starting with @)."
+  (interactive "File to load (leading @ will be stripped): ")
+  (let* ((orig filename)
+          (stripped (replace-regexp-in-string "\\`@" "" filename))
+          (expanded (expand-file-name stripped)))
+    (if (file-exists-p expanded)
+      (with-temp-buffer
+        (insert-file-contents expanded)
+        (let ((contents (buffer-string)))
+          (message "[print-file-contents-to-messages] contents of %s:\n%s" expanded contents)))
+      (message "[ash:copilot-chat] file does not exist: %s" expanded))))
+
 ;; structures
 (cl-defstruct
  copilot-chat-curl
@@ -131,7 +146,12 @@ Arguments ARGS are additional arguments to pass to curl."
             (list "--proxy-insecure"))
           (when copilot-chat-curl-proxy-user-pass
             (list "-U" copilot-chat-curl-proxy-user-pass))
-          args)))
+           args)))
+    (when copilot-chat-debug
+      (message "[ash:copilot-chat] call-process curl-args: %S"
+        (cons copilot-chat-curl-program curl-args))
+      (when data
+        (ash-debug-payload data)))
     (let ((result
            (apply #'call-process
                   copilot-chat-curl-program
@@ -185,6 +205,10 @@ Optional argument ARGS are additional arguments to pass to curl."
           (when copilot-chat-curl-proxy-user-pass
             (list "-U" copilot-chat-curl-proxy-user-pass))
           args)))
+    (when copilot-chat-debug
+      (message "[ash:copilot-chat] make-process curl-args: %S" command)
+      (when data
+        (ash-debug-payload data)))
     (setf (copilot-chat-curl-process (copilot-chat--backend instance))
           (make-process
            :name "copilot-chat-curl"
@@ -203,6 +227,11 @@ Optional argument ARGS are additional arguments to pass to curl."
              (copilot-chat--spinner-stop instance))
            :stderr (get-buffer-create "*copilot-chat-curl-stderr*")
            :command command))))
+
+;; @@@ adon: 2026-01-05: need this?
+;;(defun copilot-chat--curl-filter-json (json-raw)
+;;  "Remove null values from json parsed buffer."
+;;  (seq-filter (lambda (pair) (not (eq (cdr pair) :null))) json-raw))
 
 (defun copilot-chat--curl-parse-github-token ()
   "Curl github token request parsing."
@@ -282,6 +311,8 @@ If your browser does not open automatically, browse to %s."
 
 (defun copilot-chat--curl-renew-token ()
   "Renew session token."
+  (message "[ash:copilot-chat] renewing token: %s %s"
+    copilot-chat--connection (copilot-chat-connection-github-token copilot-chat--connection))
   (with-temp-buffer
     (copilot-chat--curl-call-process
      "https://api.github.com/copilot_internal/v2/token" 'get nil
